@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 106" fill="none">
+  <path d="M4 4 H86 V68 Q86 100 45 102 Q4 100 4 68 Z" fill="#1a1a1a" stroke="#E8521A" stroke-width="3.5"/>
+  <rect x="4" y="40" width="82" height="16" fill="#E8521A"/>
+  <rect x="39" y="4" width="12" height="96" fill="#E8521A"/>
+  <text x="14" y="82" font-family="Arial Black,sans-serif" font-weight="900" font-size="28" fill="#f2ede8">A</text>
+  <text x="56" y="82" font-family="Arial Black,sans-serif" font-weight="900" font-size="28" fill="#f2ede8">S</text>
+</svg>

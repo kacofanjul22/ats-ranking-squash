@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface text-text font-body;
+    background-color: #111111;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: rgba(232, 82, 26, 0.3);
+    color: #f0ebe5;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #161616;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #E8521A;
+  }
+
+  input, select, button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  /* Glass card */
+  .glass-card {
+    background: rgba(22, 22, 22, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-200;
+  }
+  .glass-card-hover:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(28, 28, 28, 0.8);
+  }
+
+  /* Orange glow effect */
+  .orange-glow {
+    box-shadow: 0 0 20px rgba(232, 82, 26, 0.25), 0 0 40px rgba(232, 82, 26, 0.1);
+  }
+
+  /* Noise texture overlay */
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.4;
+  }
+
+  /* Rank number display */
+  .rank-num {
+    font-family: 'Bebas Neue', sans-serif;
+    line-height: 1;
+  }
+
+  /* Category badge */
+  .cat-badge {
+    @apply inline-flex items-center justify-center text-xs font-semibold tracking-wider px-2 py-0.5 rounded-full;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .cat-a { color: #E8521A; background: rgba(232,82,26,.15); border: 1px solid rgba(232,82,26,.3); }
+  .cat-b { color: #f5a623; background: rgba(245,166,35,.12); border: 1px solid rgba(245,166,35,.25); }
+  .cat-c { color: #4fc3f7; background: rgba(79,195,247,.1); border: 1px solid rgba(79,195,247,.22); }
+  .cat-d { color: #81c784; background: rgba(129,199,132,.1); border: 1px solid rgba(129,199,132,.22); }
+
+  /* Player avatar ring */
+  .avatar-ring-a { border-color: #E8521A; }
+  .avatar-ring-b { border-color: #f5a623; }
+  .avatar-ring-c { border-color: #4fc3f7; }
+  .avatar-ring-d { border-color: #81c784; }
+  .avatar-ring-default { border-color: #3a3a3a; }
+
+  /* Section divider */
+  .section-label {
+    @apply text-xs font-semibold tracking-[0.2em] uppercase;
+    color: #555;
+    letter-spacing: 0.18em;
+  }
+
+  /* Stat value */
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    line-height: 1;
+  }
+
+  /* Motion underline */
+  .nav-active {
+    position: relative;
+  }
+  .nav-active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #E8521A;
+    border-radius: 1px 1px 0 0;
+  }
+
+  /* Scrollable hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Animated gradient border */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(#161616, #161616) padding-box,
+      linear-gradient(135deg, rgba(232,82,26,0.6), rgba(232,82,26,0.0), rgba(232,82,26,0.2)) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Win/Loss badges */
+  .badge-win {
+    @apply text-xs font-bold px-2 py-0.5 rounded;
+    color: #4dff91;
+    background: rgba(77,255,145,.12);
+    border: 1px solid rgba(77,255,145,.2);
+  }
+  .badge-loss {
+    @apply text-xs font-bold px-2 py-0.5 rounded;
+    color: #ff5c5c;
+    background: rgba(255,92,92,.12);
+    border: 1px solid rgba(255,92,92,.2);
+  }
+  .badge-pending {
+    @apply text-xs font-semibold px-2 py-0.5 rounded;
+    color: #666;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+
+  /* Top 1 glow row */
+  .row-top1 {
+    background: linear-gradient(90deg, rgba(232,82,26,0.12) 0%, rgba(232,82,26,0.04) 60%, transparent 100%);
+    border-left: 2px solid #E8521A;
+  }
+
+  /* Top 8 highlight */
+  .row-top8 {
+    background: rgba(232,82,26,0.04);
+    border-left: 2px solid rgba(232,82,26,0.25);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #E8521A, #ff8c5a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-muted { color: #6b6b6b; }
+  .text-subtle { color: #999; }
+
+  .animate-in {
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.10s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.20s; }
+  .stagger-5 { animation-delay: 0.25s; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1c1c1c 25%, #242424 50%, #1c1c1c 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* Canvas chart base */
+canvas {
+  display: block;
+  max-width: 100%;
+}
