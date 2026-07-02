@@ -7,11 +7,12 @@ import { PartidosPanel } from './components/PartidosPanel';
 import { StatsPanel } from './components/StatsPanel';
 import { InstallPrompt } from './components/InstallPrompt';
 import { PlayerModal } from './components/PlayerModal'; 
+// ── ⚙️ IMPORTAMOS EL NUEVO PANEL DE ADMINISTRADOR ──
+import { AdminPanel } from './components/AdminPanel';
 import { norm } from './lib/data';
 import type { TabName } from './types';
 
 // ── 📣 COMPONENTE INLINE: AVISOS OFICIALES ──
-// Lo definimos aquí para evitar el "Crash de pantalla negra" del componente original
 function AvisosPanel({ avisos }: { avisos: any[] }) {
   return (
     <div className="glass-card rounded-2xl p-5 border border-surface-3/30 animate-in space-y-4">
@@ -45,7 +46,6 @@ function AvisosPanel({ avisos }: { avisos: any[] }) {
 
 // ── 📋 COMPONENTE INLINE: REGLAMENTO OFICIAL 2026 ──
 function ReglamentoPanel() {
-  // Aquí cargamos exactamente tus 13 reglas oficiales
   const reglas = [
     "El Ranking se publicará en los canales de difusión de la asociación.",
     "Los jugadores de ranking \"par\" deberán desafiar al de ranking \"impar\" ubicado 3 puestos más arriba. El impar debe aceptarlo.",
@@ -132,27 +132,27 @@ export default function App() {
 
   const handleRefresh = refresh || fetchAll || (() => window.location.reload());
 
-  // ── Pantalla de carga ──
+  // ── Pantalla de carga (Enchufada a Supabase) ──
   if (data.loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-[#E8521A] border-t-transparent rounded-full animate-spin"></div>
           <p className="text-text-muted text-xs font-medium tracking-wider uppercase font-mono">
-            Sincronizando planilla oficial...
+            Sincronizando ranking en tiempo real...
           </p>
         </div>
       </div>
     );
   }
 
-  // ── Pantalla de error ──
+  // ── Pantalla de error (Corregida de Google Sheets a Supabase) ──
   if (data.error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="glass-card rounded-2xl p-6 max-w-sm text-center border border-red-500/20">
           <div className="text-2xl mb-2">⚠️</div>
-          <h3 className="font-bold text-text text-sm">Error al conectar con Google Sheets</h3>
+          <h3 className="font-bold text-text text-sm">Error al conectar con Supabase</h3>
           <p className="text-xs text-text-muted mt-1">{data.error}</p>
           <button 
             onClick={() => window.location.reload()} 
@@ -209,13 +209,17 @@ export default function App() {
           <StatsPanel data={data} />
         )}
 
-        {/* ── SECCIONES SANADAS E INTEGRADAS ── */}
         {activeTab === 'avisos' && (
           <AvisosPanel avisos={data.avisosData} />
         )}
         
         {activeTab === 'reglamento' && (
           <ReglamentoPanel />
+        )}
+
+        {/* ── ⚙️ SECCIÓN MIGRADA: PANEL DE ADMINISTRACIÓN INTERNO ── */}
+        {activeTab === 'admin' && (
+          <AdminPanel data={data} onRefresh={handleRefresh} />
         )}
 
         {/* Pop-up inteligente de instalación PWA */}
@@ -235,6 +239,17 @@ export default function App() {
         )}
         
       </main>
+
+      {/* ── ⚙️ PIE DE PÁGINA CON EL BOTÓN OCULTO DE CONTROL ── */}
+      <footer className="w-full text-center py-6 border-t border-surface-3/10 mt-auto">
+        <button 
+          onClick={() => handleTabChange('admin')}
+          className="text-[0.65rem] text-text-muted uppercase tracking-widest hover:text-[#E8521A] transition-colors"
+        >
+          ⚙️ Consola de Organización
+        </button>
+      </footer>
+
     </div>
   );
 }

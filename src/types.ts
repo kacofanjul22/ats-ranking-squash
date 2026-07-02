@@ -53,7 +53,7 @@ export interface Aviso {
 
 // ─── Tab names ────────────────────────────────────────────────────────────────
 
-export type TabName = 'home' | 'ranking' | 'partidos' | 'stats' | 'avisos' | 'reglamento';
+export type TabName = 'home' | 'ranking' | 'partidos' | 'stats' | 'avisos' | 'reglamento' | 'admin';
 
 // ─── Computed stats ───────────────────────────────────────────────────────────
 

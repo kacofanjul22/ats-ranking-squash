@@ -1,12 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { X, MessageCircle } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
 import { norm } from '../lib/data';
-import type { AppData } from '../types';
 
 interface PlayerModalProps {
   nombre: string | null;
-  data: AppData;
+  data: any;
   onClose: () => void;
 }
 
@@ -119,7 +118,6 @@ function drawHistoryChart(
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Tooltip label
     ctx.fillStyle = '#f0ebe5';
     ctx.font = 'bold 10px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
@@ -129,14 +127,30 @@ function drawHistoryChart(
 
 export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { rankingByFecha, fechaKeys, currentFecha, playerStats, playerPhotos, jugadoresData, resultadosData } = data;
 
+  const {
+    rankingByFecha = {},
+    fechasData = [], // 🟢 CORREGIDO: Extraemos las filas de fechas nativas
+    currentFecha = '',
+    playerStats = {},
+    playerPhotos = {},
+    rankingData = [], 
+    resultadosData = []
+  } = data || {};
+
+  // 🟢 CORREGIDO: Construimos de forma segura las llaves para habilitar el gráfico histórico
+  const fechaKeys = useMemo(() => (fechasData || []).map((f: any) => f.nombre), [fechasData]);
+
+  const jData = nombre ? rankingData.find((j: any) => norm(j.nombre) === norm(nombre)) : null;
   const players = currentFecha ? (rankingByFecha[currentFecha] || []) : [];
-  const player = nombre ? players.find(p => norm(p.nombre) === norm(nombre)) : null;
+  const player = nombre ? players.find((p: any) => norm(p.nombre) === norm(nombre)) : null;
 
-  const photoUrl = nombre ? playerPhotos[norm(nombre)] : undefined;
-  const jData = nombre ? jugadoresData.find(j => norm(j.nombre) === norm(nombre)) : null;
-  const key = nombre ? Object.keys(playerStats).find(k => norm(k) === norm(nombre)) : null;
+  const phone = jData?.telefono || jData?.contacto || player?.telefono || player?.contacto;
+  const photoUrl = jData?.foto_url || player?.foto_url || (nombre ? playerPhotos[norm(nombre)] : undefined);
+  const categoriaActual = jData?.categoria || player?.categoria || 'A';
+  const posicionActual = player?.posicion || player?.posNum || jData?.posicion_actual || jData?.posicion || '—';
+
+  const key = nombre ? Object.keys(playerStats || {}).find(k => norm(k) === norm(nombre)) : null;
   const st = key ? playerStats[key] : null;
 
   const wins   = st?.wins   ?? 0;
@@ -145,14 +159,20 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
   const gc     = st?.gc     ?? 0;
   const dif    = gf - gc;
 
-  const histData = fechaKeys.map(fk => {
-    const found = (rankingByFecha[fk] || []).find(p => norm(p.nombre) === norm(nombre || ''));
-    return { fecha: fk, pos: found ? found.posNum : null };
-  });
+  const histData = useMemo(() => {
+    return (fechaKeys || []).map(fk => {
+      const found = (rankingByFecha[fk] || []).find((p: any) => norm(p.nombre) === norm(nombre || ''));
+      return { fecha: fk, pos: found ? found.posNum || found.posicion : null };
+    });
+  }, [fechaKeys, rankingByFecha, nombre]);
 
-  const myMatches = nombre
-    ? resultadosData.filter(m => norm(m.desafiante) === norm(nombre) || norm(m.aceptante) === norm(nombre))
-    : [];
+  const myMatches = useMemo(() => {
+    if (!nombre) return [];
+    return (resultadosData || []).filter((m: any) => 
+      norm(m.jugador_d || m.desafiante || '') === norm(nombre) || 
+      norm(m.jugador_a || m.aceptante || '') === norm(nombre)
+    );
+  }, [resultadosData, nombre]);
 
   const drawChart = useCallback(() => {
     if (canvasRef.current && nombre) drawHistoryChart(canvasRef.current, histData);
@@ -165,10 +185,12 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
   }, [nombre, drawChart]);
 
   useEffect(() => {
-    const handleResize = () => drawChart();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [drawChart]);
+    if (nombre) {
+      const handleResize = () => drawChart();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [drawChart, nombre]);
 
   if (!nombre) return null;
 
@@ -184,18 +206,19 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
         className="glass-card rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 no-scrollbar"
         style={{ animation: 'scaleIn 0.2s ease both' }}
       >
-        {/* ── Modal header ── */}
+        {/* Header del Modal */}
         <div className="flex items-center gap-3 mb-5">
-          <PlayerAvatar nombre={nombre} photoUrl={photoUrl} categoria={player?.categoria} size="lg" />
+          <PlayerAvatar nombre={nombre} photoUrl={photoUrl} categoria={categoriaActual} size="lg" />
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-2xl text-text tracking-wide leading-tight">{nombre}</h2>
             <div className="text-xs text-text-muted mt-0.5">
-              {player?.categoria ? `Categoría ${player.categoria} · ` : ''}
-              Pos. #{player?.pos || '—'}
+              {categoriaActual ? `Categoría ${categoriaActual} · ` : ''}
+              Pos. #{posicionActual}
             </div>
-            {jData?.contacto && (
+            
+            {phone && (
               <a
-                href={`https://wa.me/${jData.contacto.replace(/\D/g, '')}`}
+                href={`https://wa.me/${String(phone).replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 mt-1.5 text-[0.7rem] font-semibold text-[#25d366] bg-[rgba(37,211,102,0.1)] border border-[rgba(37,211,102,0.25)] px-2.5 py-1 rounded-lg hover:bg-[rgba(37,211,102,0.18)] transition-colors"
@@ -213,10 +236,10 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
           </button>
         </div>
 
-        {/* ── Stats cards ── */}
+        {/* Tarjetas de Estadísticas */}
         <div className="grid grid-cols-3 gap-2 mb-5">
           {[
-            { val: `#${player?.pos || '—'}`, label: 'Posición',   color: 'text-[#E8521A]' },
+            { val: `#${posicionActual}`, label: 'Posición',   color: 'text-[#E8521A]' },
             { val: `${wins}/${losses}`, label: 'G / P',    color: 'text-text'      },
             { val: `${dif >= 0 ? '+' : ''}${dif}`, label: 'Dif. games', color: dif >= 0 ? 'text-[#E8521A]' : 'text-[#ff5c5c]' },
           ].map(s => (
@@ -227,7 +250,7 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
           ))}
         </div>
 
-        {/* ── History chart ── */}
+        {/* Gráfico de Evolución */}
         <div className="mb-5">
           <div className="text-[0.6rem] text-text-muted tracking-widest uppercase mb-2 font-bold">Evolución de posición — #1 es la cima</div>
           <div className="bg-surface-2 rounded-xl p-3 border border-surface-3">
@@ -235,37 +258,41 @@ export function PlayerModal({ nombre, data, onClose }: PlayerModalProps) {
           </div>
         </div>
 
-        {/* ── Match history ── */}
+        {/* Historial de Partidos */}
         <div>
           <div className="text-[0.6rem] text-text-muted tracking-widest uppercase mb-2 font-bold">Partidos jugados</div>
           {myMatches.length === 0 ? (
             <div className="text-center py-4 text-text-muted text-sm">Sin partidos registrados</div>
           ) : (
             <div className="space-y-1">
-              {myMatches.map((m, i) => {
-                const isD = norm(m.desafiante) === norm(nombre);
-                const opp = isD ? m.aceptante : m.desafiante;
-                const gd = m.games_d !== null ? parseInt(m.games_d) : null;
-                const ga = m.games_a !== null ? parseInt(m.games_a) : null;
-                const hasScore = gd !== null && ga !== null && (gd > 0 || ga > 0);
+              {myMatches.map((m: any, i: number) => {
+                const isD = norm(m.jugador_d || m.desafiante || '') === norm(nombre);
+                const opp = isD ? (m.jugador_a || m.aceptante) : (m.jugador_d || m.desafiante);
+                
+                const gd = m.games_d !== null && m.games_d !== undefined ? parseInt(String(m.games_d)) : null;
+                const ga = m.games_a !== null && m.games_a !== undefined ? parseInt(String(m.games_a)) : null;
+                
+                const hasScore = gd !== null && ga !== null;
                 const myG = isD ? gd : ga;
                 const oppG = isD ? ga : gd;
                 const won = hasScore && myG !== null && oppG !== null && myG > oppG;
                 return (
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-surface-3 last:border-0 text-sm">
-                    <span className="text-[0.6rem] text-text-muted font-mono min-w-[48px] flex-shrink-0">F. {m.fecha}</span>
+                    <span className="text-[0.6rem] text-text-muted font-mono min-w-[48px] flex-shrink-0">{m.fecha || '—'}</span>
                     <span className="flex-1 text-text-subtle truncate">{opp || '—'}</span>
                     {hasScore && myG !== null && oppG !== null && (
-                      <span className={`font-bold text-sm flex-shrink-0 ${won ? 'text-[#4dff91]' : 'text-[#ff5c5c]'}`}>
+                      <span className={`font-bold text-sm flex-shrink-0 ${gd === 0 && ga === 0 ? 'text-text-muted' : won ? 'text-[#4dff91]' : 'text-[#ff5c5c]'}`}>
                         {myG}–{oppG}
                       </span>
                     )}
                     <span className={`flex-shrink-0 px-2 py-0.5 rounded text-xs font-semibold ${
-                      hasScore
-                        ? won ? 'badge-win' : 'badge-loss'
-                        : 'badge-pending'
+                      gd === 0 && ga === 0
+                        ? 'bg-surface-3 text-text-muted'
+                        : hasScore
+                          ? won ? 'badge-win' : 'badge-loss'
+                          : 'badge-pending'
                     }`}>
-                      {hasScore ? (won ? 'Ganó' : 'Perdió') : 'Pendiente'}
+                      {gd === 0 && ga === 0 ? 'No Jugado' : hasScore ? (won ? 'Ganó' : 'Perdió') : 'Pendiente'}
                     </span>
                   </div>
                 );
