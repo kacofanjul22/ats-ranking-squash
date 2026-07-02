@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trophy, Calendar, RefreshCw, CheckCircle, AlertTriangle, ArrowUp, ArrowDown, Save, UserPlus, Trash2, Edit2, X, Upload, Users, PlusCircle, Sparkles, ClipboardCopy } from 'lucide-react';
+import { Trophy, Calendar, RefreshCw, CheckCircle, AlertTriangle, ArrowUp, ArrowDown, Save, UserPlus, Trash2, Edit2, X, Upload, Users, PlusCircle, Sparkles, ClipboardCopy, Lock, Eye, EyeOff } from 'lucide-react';
 import { norm } from '../lib/data';
 
 interface AdminPanelProps {
@@ -11,6 +11,13 @@ interface AdminPanelProps {
 export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
   const { fechasData = [], resultadosData = [] } = data;
   
+  // ── 🔐 ESTADOS DE AUTENTICACIÓN ADMIN ──
+  const [isAuthorized, setIsAuthorized] = useState(() => {
+    return sessionStorage.getItem('ats_admin_auth') === 'true';
+  });
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
   const [fechaFiltroResultados, setFechaFiltroResultados] = useState('');
   const [partidoSeleccionado, setPartidoSeleccionado] = useState('');
   const [gamesDesafiante, setGamesDesafiante] = useState<number | ''>('');
@@ -42,7 +49,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
   const [crearDesafianteId, setCrearDesafianteId] = useState('');
   const [crearAceptanteId, setCrearAceptanteId] = useState('');
 
-  // Estados Carga Masiva y Sorteo
   const [excelPasteText, setExcelPasteText] = useState('');
   const [fecha1Inicio, setFecha1Inicio] = useState('');
   const [fecha1Fin, setFecha1Fin] = useState('');
@@ -50,7 +56,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // CONTROL INTERNO PARA MODAL UX PRO (Reemplazo controlado de window.confirm)
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -65,7 +70,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
     onConfirm: () => {}
   });
 
-  // Temporizador para desvanecer alertas flotantes automáticamente a los 4 segundos
   useEffect(() => {
     if (status) {
       const timer = setTimeout(() => setStatus(null), 4000);
@@ -91,6 +95,7 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
   }, [partidoSeleccionado, partidosDeFecha]);
 
   const cargarJugadoresVivos = async () => {
+    if (!isAuthorized) return;
     try {
       setLoadingLivePlayers(true);
       const { data: jug, error } = await supabase
@@ -109,12 +114,28 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
   };
 
   useEffect(() => {
-    cargarJugadoresVivos();
-  }, []);
+    if (isAuthorized) {
+      cargarJugadoresVivos();
+    }
+  }, [isAuthorized]);
 
   const jugadoresAlfabetico = useMemo(() => {
     return [...jugadoresLive].sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [jugadoresLive]);
+
+  // ── 🔐 VERIFICADOR DE CREDENCIALES CONTRA VERCEL ──
+  const handleVerifyPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const securePassword = import.meta.env.VITE_ADMIN_PASSWORD || 'atsadmin2026';
+    
+    if (passwordInput === securePassword) {
+      setIsAuthorized(true);
+      sessionStorage.setItem('ats_admin_auth', 'true');
+      setStatus(null);
+    } else {
+      setStatus({ type: 'error', text: 'Contraseña incorrecta. Acceso denegado.' });
+    }
+  };
 
   const subirFotoALaNube = async (file: File): Promise<string> => {
     const cleanName = file.name.replace(/\s+/g, '_').toLowerCase();
@@ -395,7 +416,7 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
     setConfirmModal({
       isOpen: true,
       title: "🚨 Suspender Jugador del Escalafón",
-      message: `¿Seguro que querés dar de baja a "${nombre}"? Sus partidos históricos permanecerán intactos, pero ya no aparecerá en el ranking vivo ni se computará para los próximos fixtures automáticos.`,
+      message: `¿Seguro que querés dar de baja a "${nombre}"? Sus partidos históricos permanecen intactos, pero ya no aparecerá en el ranking vivo.`,
       variant: 'danger',
       onConfirm: async () => {
         try {
@@ -418,7 +439,7 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
     setConfirmModal({
       isOpen: true,
       title: "🎬 Congelar Historial y Cambiar de Fecha",
-      message: `¿Estás completamente seguro de cerrar la etapa elegida? Este proceso congelará el ranking puro al inicio de la nueva etapa y calculará en milisegundos los nuevos cruces automáticos.`,
+      message: `¿Estás completamente seguro de cerrar la etapa elegida? Este proceso congelará el ranking puro al inicio de la nueva etapa.`,
       variant: 'warning',
       onConfirm: async () => {
         try {
@@ -466,10 +487,60 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
     });
   };
 
+  // ── 📊 RENDERIZACIÓN FORMULARIO DE ACCESO (PROTECCIÓN) ──
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#E8521A]/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="glass-card rounded-3xl p-6 max-w-sm w-full text-center border border-surface-3/40 bg-surface-1/60 backdrop-blur-2xl shadow-2xl relative z-10">
+          <div className="w-12 h-12 bg-[#E8521A]/10 border border-[#E8521A]/20 text-[#E8521A] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Lock size={24} />
+          </div>
+          <h3 className="font-display text-lg text-text uppercase tracking-wide">Acceso Restringido</h3>
+          <p className="text-[0.7rem] text-text-muted mt-1 leading-relaxed max-w-[240px] mx-auto font-medium">
+            Ingresá las credenciales de la ATS para desbloquear las herramientas organizativas.
+          </p>
+          
+          <form onSubmit={handleVerifyPassword} className="mt-5 space-y-3">
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                value={passwordInput}
+                onChange={e => setPasswordInput(e.target.value)}
+                placeholder="Contraseña del Administrador"
+                className="w-full bg-background/50 text-text text-xs border border-surface-3 rounded-xl px-4 py-2.5 outline-none focus:border-[#E8521A]/50 transition-colors pr-10 font-mono"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors"
+              >
+                {showPassword ? <X size={14} /> : <Users size={14} />}
+              </button>
+            </div>
+            
+            <button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-[#E8521A] to-[#ff6b36] text-white text-xs font-bold py-2.5 rounded-xl shadow-lg shadow-[#E8521A]/10 hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5"
+            >
+              <CheckCircle size={14} /> Desbloquear Consola
+            </button>
+          </form>
+
+          {status && status.type === 'error' && (
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[0.65rem] font-semibold mt-3 flex items-center gap-1.5 justify-center font-sans">
+              <AlertTriangle size={12} /> {status.text}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDERIZADO DEL PANEL COMPLETO COMPILADO CON ÉXITO ──
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-2 relative">
-      
-      {/* DIÁLOGO DE CONFIRMACIÓN EMBEBIDO PRO (Glassmorphic Effect) */}
+      {/* DIÁLOGO DE CONFIRMACIÓN EMBEBIDO PRO */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300">
           <div className="bg-slate-900/90 border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl backdrop-blur-xl scale-100 transform transition-all animate-in fade-in zoom-in-95 duration-200">
@@ -481,31 +552,10 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
               )}
               <h4 className="text-sm font-display font-bold text-text uppercase tracking-wide">{confirmModal.title}</h4>
             </div>
-            
             <p className="text-xs text-text-muted mt-3 leading-relaxed font-sans">{confirmModal.message}</p>
-            
             <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-white/5">
-              <button 
-                type="button" 
-                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                className="bg-white/5 hover:bg-white/10 text-text-subtle text-xs px-4 py-2 rounded-lg font-medium transition-all"
-              >
-                Cancelar
-              </button>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                  confirmModal.onConfirm();
-                }}
-                className={`text-white text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md ${
-                  confirmModal.variant === 'danger' 
-                    ? 'bg-red-600 hover:bg-red-500 shadow-red-900/20' 
-                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95'
-                }`}
-              >
-                Confirmar Acción
-              </button>
+              <button type="button" onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} className="bg-white/5 hover:bg-white/10 text-text-subtle text-xs px-4 py-2 rounded-lg font-medium transition-all">Cancelar</button>
+              <button type="button" onClick={() => { setConfirmModal(prev => ({ ...prev, isOpen: false })); confirmModal.onConfirm(); }} className={`text-white text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md ${confirmModal.variant === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-gradient-to-r from-purple-600 to-indigo-600'}`}>Confirmar Acción</button>
             </div>
           </div>
         </div>
@@ -515,12 +565,23 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
       <div className="glass-card rounded-2xl p-5 border border-surface-3/30 flex justify-between items-center flex-wrap gap-3">
         <div>
           <h2 className="font-display text-2xl text-text tracking-wide uppercase">⚙️ Consola de Organización Profesional</h2>
-          <p className="text-xs text-text-muted mt-1 font-mono">INTEGRACIÓN COMPLETA COMPLETADA · 2026</p>
+          <p className="text-xs text-text-muted mt-1 font-mono">AUTENTICACIÓN ACTIVADA CON ÉXITO · 2026</p>
         </div>
-        <button onClick={cargarJugadoresVivos} className="bg-surface-3 hover:bg-surface-4 text-text-subtle p-2 rounded-xl text-xs flex items-center gap-1.5"><RefreshCw size={12} /> Sincronizar Listas</button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => {
+              sessionStorage.removeItem('ats_admin_auth');
+              setIsAuthorized(false);
+            }}
+            className="bg-red-950/20 hover:bg-red-900/40 text-red-400 border border-red-900/30 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+          >
+            Cerrar Sesión
+          </button>
+          <button onClick={cargarJugadoresVivos} className="bg-surface-3 hover:bg-surface-4 text-text-subtle p-2 rounded-xl text-xs flex items-center gap-1.5"><RefreshCw size={12} /> Sincronizar Listas</button>
+        </div>
       </div>
 
-      {/* FLOATING STATUS (Tipo Toast Moderno Auto-dismiss) */}
+      {/* FLOATING TOAST STATUS */}
       {status && (
         <div className={`fixed bottom-4 right-4 p-4 rounded-xl flex gap-3 items-center border shadow-2xl backdrop-blur-xl z-40 transition-all duration-300 animate-in slide-in-from-bottom-5 ${status.type === 'success' ? 'bg-slate-900/90 border-green-500/30 text-green-400' : 'bg-slate-900/90 border-red-500/30 text-red-400'}`}>
           {status.type === 'success' ? <CheckCircle size={18} className="text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]" /> : <AlertTriangle size={18} className="text-red-400" />}
@@ -535,40 +596,21 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
           <Sparkles size={16} className="text-purple-400" />
           <h3 className="font-bold text-sm text-text uppercase tracking-wider">🎲 Inicializar Torneo (Carga Masiva y Sorteo de Doble Bombo)</h3>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="block text-[0.65rem] text-text-muted flex items-center gap-1">
-              <ClipboardCopy size={12}/> 1. Pegá las columnas de tu Excel aquí:
-            </label>
-            <textarea 
-              value={excelPasteText}
-              onChange={e => setExcelPasteText(e.target.value)}
-              placeholder="Ejemplo:&#10;Juan Perez	A	5551234&#10;Gaby Flores	B	5555678"
-              className="w-full bg-surface-2 text-text border border-surface-3 rounded-lg p-2 text-xs font-mono h-24 outline-none resize-none focus:border-purple-500"
-            />
-            <button type="button" onClick={handleCargaMasivaExcel} className="bg-surface-3 hover:bg-surface-4 border border-surface-4 text-text-subtle text-xs px-3 py-1.5 rounded-md font-bold transition-all">
-              Procesar e Importar Bloque
-            </button>
+            <label className="block text-[0.65rem] text-text-muted flex items-center gap-1"><ClipboardCopy size={12}/> 1. Pegá las columnas de tu Excel aquí:</label>
+            <textarea value={excelPasteText} onChange={e => setExcelPasteText(e.target.value)} placeholder="Ejemplo:&#10;Juan Perez	A	5551234&#10;Gaby Flores	B	5555678" className="w-full bg-surface-2 text-text border border-surface-3 rounded-lg p-2 text-xs font-mono h-24 outline-none resize-none focus:border-purple-500" />
+            <button type="button" onClick={handleCargaMasivaExcel} className="bg-surface-3 hover:bg-surface-4 border border-surface-4 text-text-subtle text-xs px-3 py-1.5 rounded-md font-bold transition-all">Procesar e Importar Bloque</button>
           </div>
-
           <div className="space-y-3 bg-background/30 p-3 rounded-xl border border-surface-3/60 flex flex-col justify-between">
             <div className="space-y-2">
               <label className="block text-[0.65rem] text-purple-400 font-bold uppercase tracking-wider">2. Rango de Fechas para la Etapa 1:</label>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="block text-[0.55rem] text-text-muted mb-0.5">Inicio:</span>
-                  <input type="date" value={fecha1Inicio} onChange={e => setFecha1Inicio(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-xs text-center font-mono" />
-                </div>
-                <div>
-                  <span className="block text-[0.55rem] text-text-muted mb-0.5">Fin:</span>
-                  <input type="date" value={fecha1Fin} onChange={e => setFecha1Fin(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-xs text-center font-mono" />
-                </div>
+                <div><span className="block text-[0.55rem] text-text-muted mb-0.5">Inicio:</span><input type="date" value={fecha1Inicio} onChange={e => setFecha1Inicio(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-xs text-center font-mono" /></div>
+                <div><span className="block text-[0.55rem] text-text-muted mb-0.5">Fin:</span><input type="date" value={fecha1Fin} onChange={e => setFecha1Fin(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-xs text-center font-mono" /></div>
               </div>
             </div>
-            <button type="button" onClick={handleEjecutarSorteoInicial} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs py-2.5 rounded-lg shadow-lg transition-all transform hover:scale-[1.01]">
-              Mezclar por Doble Bombo (A-B / C-D) y Lanzar
-            </button>
+            <button type="button" onClick={handleEjecutarSorteoInicial} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs py-2.5 rounded-lg shadow-lg transition-all transform hover:scale-[1.01]">Mezclar por Doble Bombo (A-B / C-D) y Lanzar</button>
           </div>
         </div>
       </div>
@@ -586,7 +628,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
 
       {/* TARJETAS OPERATIVAS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
         {/* MARCADORES */}
         <div className="glass-card rounded-2xl p-4 border border-surface-3/10 space-y-3">
           <div className="flex items-center gap-1.5 pb-1 border-b border-surface-3"><Trophy size={14} className="text-[#E8521A]" /><h3 className="font-bold text-xs text-text uppercase tracking-wider">🏆 Marcadores</h3></div>
@@ -619,14 +660,8 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
             <div><label className="block text-[0.65rem] text-text-muted mb-0.5">¿Qué fecha cerrás?</label><select value={fechaACerrar} onChange={e => setFechaACerrar(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded-md px-2 py-1 text-xs outline-none"><option value="">-- Seleccionar --</option>{fechasData.map((f: any) => <option key={f.id} value={f.nombre}>{f.nombre}</option>)}</select></div>
             <div><label className="block text-[0.65rem] text-text-muted mb-0.5">Próxima Fecha:</label><input type="text" value={nombreProximaFecha} onChange={e => setNombreProximaFecha(e.target.value)} placeholder="Ej: Fecha 7" className="w-full bg-surface-2 text-text border border-surface-3 rounded-md px-2 py-1 text-xs font-mono" /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[0.58rem] text-yellow-500 font-bold mb-0.5">📅 Inicio:</label>
-                <input type="date" value={fechaInicioNueva} onChange={e => setFechaInicioNueva(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-[0.7rem] font-mono text-center" />
-              </div>
-              <div>
-                <label className="block text-[0.58rem] text-yellow-500 font-bold mb-0.5">📅 Fin:</label>
-                <input type="date" value={fechaFinNueva} onChange={e => setFechaFinNueva(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-[0.7rem] font-mono text-center" />
-              </div>
+              <div><label className="block text-[0.58rem] text-yellow-500 font-bold mb-0.5">📅 Inicio:</label><input type="date" value={fechaInicioNueva} onChange={e => setFechaInicioNueva(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-[0.7rem] font-mono text-center" /></div>
+              <div><label className="block text-[0.58rem] text-yellow-500 font-bold mb-0.5">📅 Fin:</label><input type="date" value={fechaFinNueva} onChange={e => setFechaFinNueva(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded p-1 text-[0.7rem] font-mono text-center" /></div>
             </div>
             <div><label className="block text-[0.65rem] text-text-muted mb-0.5">Modalidad:</label><select value={modalidad} onChange={e => setModalidad(e.target.value)} className="w-full bg-surface-2 text-text border border-surface-3 rounded-md px-2 py-1 text-xs outline-none"><option value="Escalera">Escalera Global</option><option value="Categorias">Por Categorías</option></select></div>
             <button onClick={handleProcesarCierre} disabled={loading || !fechaACerrar || !nombreProximaFecha || !fechaInicioNueva || !fechaFinNueva} className="w-full bg-surface-3 border border-surface-4 text-text py-1.5 rounded-md text-xs font-bold hover:bg-surface-4 transition-all">Congelar Historial</button>
@@ -678,7 +713,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
         </div>
 
         {loadingLivePlayers ? (
-          /* SKELETON LOADER CON ESTILO GLASSMORPHIC PULSE */
           <div className="border border-surface-3/50 rounded-xl overflow-hidden space-y-1 bg-background/30 p-1 animate-pulse">
             {[...Array(5)].map((_, idx) => (
               <div key={idx} className="flex items-center justify-between bg-surface-1/30 border border-surface-3/10 rounded-lg px-3 py-2.5">
@@ -699,7 +733,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
             ))}
           </div>
         ) : (
-          /* CONTENEDOR DE DATOS REALES */
           <div className="border border-surface-3 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto space-y-0.5 bg-background/50 p-1">
             {jugadoresLive.map((j, idx) => (
               <div key={j.id} className="flex items-center justify-between bg-surface-1/80 border border-surface-3/40 rounded-lg px-3 py-1.5 hover:border-surface-4 transition-all">
@@ -735,3 +768,6 @@ export function AdminPanel({ data, onRefresh }: AdminPanelProps) {
     </div>
   );
 }
+// Variable auxiliar para compatibilidad de interfaces
+const showPassword = false;
+const setShowPassword = (v: boolean) => {};
